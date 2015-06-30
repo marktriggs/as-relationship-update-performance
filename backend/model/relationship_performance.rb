@@ -28,9 +28,17 @@ module Relationships
               #  * their_col = subject_rlshp.subject_id
               #  * my_col = subject_rlshp.archival_object_id
 
-              self.join(relationship_defn, Sequel.qualify(relationship_defn.table_name, my_col) => Sequel.qualify(self.table_name, :id)).
-                filter(Sequel.qualify(relationship_defn.table_name, their_col) => obj.id).
-                update(Sequel.qualify(self.table_name, :system_mtime) => now)
+              if DB.supports_join_updates?
+                # MySQL will optimize this much more aggressively
+                self.join(relationship_defn, Sequel.qualify(relationship_defn.table_name, my_col) => Sequel.qualify(self.table_name, :id)).
+                  filter(Sequel.qualify(relationship_defn.table_name, their_col) => obj.id).
+                  update(Sequel.qualify(self.table_name, :system_mtime) => now)
+              else
+                ids_to_touch = relationship_defn.filter(their_col => obj.id).
+                               select(my_col)
+                self.filter(:id => ids_to_touch).
+                  update(:system_mtime => now)
+              end
             end
           end
         end

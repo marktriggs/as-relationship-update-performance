@@ -7,10 +7,16 @@ module Notes
 
  def apply_notes(obj, json)
       if obj.note_dataset.first
-    	association = self.association_reflection(:note)                                                                            
-        SubnoteMetadata.join(:note, Sequel.qualify(:note, :id) => Sequel.qualify(:subnote_metadata, :note_id))                  
-             .filter( association[:key] => obj.id  ).delete 
-        obj.note_dataset.delete 
+        if DB.supports_join_updates?
+          # MySQL will optimize this much more aggressively.
+          association = self.association_reflection(:note)
+          SubnoteMetadata.join(:note, Sequel.qualify(:note, :id) => Sequel.qualify(:subnote_metadata, :note_id))
+            .filter( association[:key] => obj.id  ).delete
+          obj.note_dataset.delete
+        else
+          SubnoteMetadata.filter(:note_id => obj.note_dataset.select(:id)).delete
+          obj.note_dataset.delete
+        end
       end
       populate_persistent_ids(json)
 
@@ -31,15 +37,14 @@ module Notes
                                  :guid => m.fetch(:guid))
         end
 
-	note_obj.add_persistent_ids(extract_persistent_ids(note),
-				     *obj.persistent_id_context)
-        
+        note_obj.add_persistent_ids(extract_persistent_ids(note),
+                                     *obj.persistent_id_context)
+
         obj.add_note(note_obj)
       end
-        
-	obj
+
+        obj
      end
 
   end
 end
-
