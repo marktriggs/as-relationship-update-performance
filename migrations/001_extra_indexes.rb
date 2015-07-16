@@ -21,8 +21,8 @@ Sequel.migration do
     end
 
     begin
-      alter_table(:import_job) do
-        add_index([:status], :name => "import_status_idx")
+      alter_table(:job) do
+        add_index([:status], :name => "job_status_idx")
       end
     rescue Sequel::DatabaseError => e
       raise e unless e.to_s =~ /Duplicate key name/
